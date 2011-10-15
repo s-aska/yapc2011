@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>How to Build One Page Application</title>
+<script>
+if (navigator.userAgent.indexOf('Win') != -1) {
+    document.write('<link rel="stylesheet" type="text/css" href="win.css" media="all">')
+}
+</script>
+<link rel="stylesheet" type="text/css" href="style.css" media="all">
+<link rel="stylesheet" type="text/css" href="slider.css" media="all">
+<script src="jquery.min.js"></script>
+<script src="markdown.js"></script>
+<script src="slider.js"></script>
+</head>
+<body>
+<article>
+<section id="view">
+</section>
+</article>
+<ul id="pages" style="display: none;">
+<li>
+# How to Build One Page Application
+## 自己紹介
+- @su_aska
+- 開発者
+- ライフワーク: http**s**://tasks.7kai.org (7kai Tasks)
+  - とことん作り込む => ノウハウを Open & Share
+- Note: http://doc.7kai.org (Markdown::Binder)
+- Blog: http://blog.7kai.org (Markdown::Diary)
+- github: https://github.com/s-aska (上記3つ共ソース公開)
+</li>
+<li>
+# おことわり
+- 時間がギリギリです
+- スライドが60pageあります
+- 特にオモシロネタはありません
+- 万一タイムオーバーした場合は後日Noteをご確認下さい
+- 分からなかったところはTwitterで質問して下さい
+</li>
+<li>
+# 1-1. One Page Application
+- 1枚の静的なHTMLとJs/WebAPI等で構成されたWebアプリケーション
+- Webアプリケーションを強化し続けた結果生まれた一つの形態
+- 例: TweetDeck, 7kai Tasks
+</li>
+<li>
+# 1-1. One Page Application
+## 何が嬉しいのか?
+- 速い
+- Backendがスッキリ(WebAPIのみ)
+- 開発コスト ... Webアプリ &gt;&gt; OPA &gt;&gt; ネイティブアプリ
+- 性能 ... ネイティブアプリ &gt;&gt; OPA &gt;&gt; Webアプリ
+- 慣れると当然作るコストも下がるので是非趣味で組んでみましょう
+- 実際私がやった結果 ... 7kai Tasks
+- ご利用は計画的に
+</li>
+<li>
+# 1-1. One Page Application
+## なぜ静的HTMLなのか？
+- キャッシュ可能(Nginx/Apache)
+- オフライン対応可能(applicationCache) ※但し不安定なブラウザが多い
+  - Mobile Safariでの動作は割りとまともっぽいので検証中(7kai Tasks)
+</li>
+<li>
+# 1-1. One Page Application
+## 動作原理
+1. HTML/CSS/Jsがロードされる
+2. 読み完了後js実行
+3. localStorageやAjaxでデータ取得、セッション復元、画面構築
+4. セッションが無い場合サインイン用のパーツ表示
+
+※オフライン対応する場合、3が複雑になる
+</li>
+<li>
+# 1-2. Backend
+## 概要
+
+WebAPIしかないシンプルな構成、7kai Tasksの場合コード量はフロント7割、バック3割
+
+- テンプレートエンジン不要
+- FillInForm不要
+- Validatorの失敗も403とかでおｋ
+  - Js側のValidatorを無視したリクエストは攻撃とみなす
+  - 重複チェックエラー等は200かつ success or status を 0 で返す等
+- 対PC, 対スマホ, 対ネイティブ用で作り分ける必要がない
+
+**最高**ですね。
+</li>
+<li>
+# 1-2. Backend
+## Security
+セキュリティに関わる部分だけは丁寧に (詳しくは徳丸本をご参照下さい)
+
+- GETは参照, POSTは更新系処理で使用する
+- POSTはCSRF対策を施す
+- Jsで入力チェックを行っている場合でも手を抜かず入力チェックを行う
+- 権限チェックは割と抜けがちなので気をつける(他人のデータのIDを指定すると書き換えられる等)
+- パスワード保存する時は最低でも Crypt::SaltedHash を使っておく
+</li>
+<li>
+# 1-2. Backend
+## Status Code
+- ステータスコードは重要なのでちゃんと設計しておく
+    - 401 ... 未認証
+    - 403 ... 権限がない
+    - 404 ... データがない
+    - 500 ... 実行時エラー
+    - 502 ... 落ちてる
+    - 503 ... 落ちてる
+- 例外処理は全API共通処理を1つ設けておくと開発が楽
+  - 401が返ってきたら画面クリアしSign In出す等
+- 真面目にWebAPI作っただけだと初回沢山叩かないといけないのでboot用WebAPIを用意しておくとサーバーにやさしい
+- 通知等に使用する定期的に打たれるWebAPIは指定された日時以降の更新がない場合304返す実装に対応しておくとサーバー/クライアントにやさしい
+</li>
+<li>
+# 1-2. Backend
+
+## 構成
+
+- Ubuntu + Nginx + MySQL + Perl/Plack
+
+## Modules
+
+- Amon2 + Teng + JSON::XS
+- Log::Minimal
+- Crypt::SaltedHash
+- Furl
+- FormValidator::Lite
+- Facebook::Graph
+- Net::Twitter::Lite
+</li>
+<li>
+# 1.3 Mock
+
+HTML5/CSS3で作る。
+
+- [Bootstrap](http://twitter.github.com/bootstrap/) Twitterから公開されているCSS、スマートフォンでも使える優れもの。
+</li>
+<li>
+# 1.4 Modernize 
+
+<ins>※これから解説する内容はあくまで筆者が編み出した1つの解に過ぎません、参考、引用、反面教師如何様に受け取って頂いて構いません。</ins>
+
+私が辿ってきたJsの変遷を軽くご紹介します。
+</li>
+<li>
+# 1.4 Modernize 
+
+## アプリの定義: old
+
+    (function(ns, w, d) {
+
+    ns.App = initialize;
+    ns.App.prototype = {
+        run: run
+    };
+
+    function initialize(options){
+
+    }
+
+    function run(){
+        var self = this;
+
+    }
+
+    })(this, this, document);
+</li>
+<li>
+# 1.4 Modernize 
+
+## アプリの定義: new
+
+    (function(ns, w, d) {
+
+    var app = ns.app = {};
+
+    app.run = function(){
+        
+    };
+
+    })(this, this, document);
+</li>
+<li>
+# 1.4 Modernize 
+
+## その他
+
+- <del>!=, ==</del>
+- !==, ===
+- グローバル変数は1つ ( app )
+- var は function の先頭に固める
+- if の括弧を省略しない
+- ++ と -- は自重しない
+- for (var i = 0, max\_i = array.length; i &lt; max\_i; i++) { ... }
+- <del>parseInt(num)</del>
+- parseInt(num, 10) or Number(num)
+- <del>throw Error({})</del>
+- throw { message: message }
+- その他 Javascriptパターン や JSLint 参照
+</li>
+<li>
+# 2-1. app
+
+## appとは...
+
+- 唯一のグローバル変数
+- アプリケーションを格納するコンテナ
+
+        var app = ns.app = {};
+</li>
+<li>
+# 2-1. app
+
+## 入れるもの
+
+One Page ApplicationではJsで表現する内容が非常に多い...
+
+- 定数
+- 設定 (PC/SmartPhoneで値を変えて使用する等)
+- 環境変数的なデータ (lang ...etc)
+- 状態的なデータ (online, signed ...etc)
+- APIから引いてきたり、ユーザが操作して作ったデータ
+- 処理
+    - DOMを操作する (国際化...)
+    - DOMにイベントを割り当てる (プルダウンメニュー化...)
+    - APIにリクエストを送る
+    - ...etc
+</li>
+<li>
+# 2-1. app
+
+## 課題
+
+- やってる事が多すぎて整理できない
+- 「あの処理書いているのはどこだっけ...」と本人でも忘れる始末
+- この処理どこに書こうかなと途方に暮れる
+- 忙しいので適当に書いて惨状が広がる
+</li>
+<li>
+# 2-1. app
+
+## 整理して見ました
+
+- app.XXXXX ... 定数
+- app.option.* ... 設定
+- app.env.* ... langやtoken等一度決定したら変化しないデータ
+- app.state.* ... 状態を表すデータ
+- app.data.* ... Ajax等から取得したデータ
+- app.date.* ... Dateを操作するユーティリティメソッド
+- app.dom.* ... DOM要素を動作するユーティリティメソッド
+- app.util.* ... ユーティリティメソッド
+- app.api.* ... Ajaxを伴うメソッド
+- app.setup.* ... 要素の初期化を行うメソッド
+- app.click.* ... クリックイベントを捌くメソッド
+- app.submit.* ... サブミットイベントを捌くメソッド
+</li>
+<li>
+# 2-1. app
+
+## Js 1ファイルだと辛い時
+
+日頃使用する app-core.js にアプリ固有の実装を app.js で付け足すイメージ。
+
+    wget http://.../app-core.js
+    touch app.js
+    vim app.js
+
+例: https://github.com/s-aska/7kai-Tasks
+</li>
+<li>
+# 2-1. app
+
+## ファイル分割
+
+app を app-core.js では空のオブジェクトとして生成、app.js では ns.app から取得している。
+
+### app-core.js
+
+    (function(ns, w, d, $) {
+    var app = ns.app = {};
+    app.run = function(){};
+    })(this, this, document, jQuery);
+
+### app.js
+
+    (function(ns, w, d, $) {
+    var app = ns.app;
+    app.signin = function(){};
+    })(this, this, document, jQuery);
+</li>
+<li>
+# 2-1. app
+
+## ファイル構成(例)
+
+- app-core.js ... 自分/自社用テンプレート
+- app.js ... そのアプリ特有のコード
+- app-mobile.js ... スマホ特有のコード
+- app-pc.js ... PC特有のコード
+</li>
+<li>
+# 2-2. CustomEvent
+
+## 概要
+
+clickやsubmitといったDOMのイベントの他にあるアプリケーションレベルのイベントです。
+
+<ins>私は自分で実装していますが、各種Jsライブラリで賄うことも出来ます。</ins>
+
+</li>
+<li>
+# 2-2. CustomEvent
+
+## 実装例
+
+    app.addEvents = function(){
+        var args = $.makeArray(arguments);
+        for (var i = 0, max_i = args.length; i < max_i; i++) {
+            app.events[args[i]] = [];
+        }
+    }
+    app.addListener = function(name, fh, context){
+        if (!(name in app.events)) {
+            console.log('unknown event ' + name);
+        }
+        app.events[name].push([fh, context]);
+    }
+    app.fireEvent = function(){
+        var args = $.makeArray(arguments);
+        var name = args.shift();
+        if (!(name in app.events)) {
+            console.log('unknown event ' + name);
+            return;
+        }
+        for (var i = 0, max_i = app.events[name].length; i < max_i; i++) {
+            app.events[name][i][0].apply(app.events[name][i][1] || app, args);
+        }
+    }
+</li>
+<li>
+# 2-2. CustomEvent
+
+## 効果
+
+この機構はアプリケーション内で発生するイベントを**視覚化**、イベント処理を**抽象化**し、イベントの発生元と影響先間の結合を弱くしDOM構造の変更つまり画面レイアウトの変更に強くします。
+
+7kai Tasksではイベントを駆使し、PC版とスマホ版の仕様・コードをなるべく共通化しています。
+</li>
+<li>
+# 2-2. CustomEvent
+
+## old
+
+イベント毎に1メソッド、中に各要素への処理が書かれている、すぐゴチャゴチャする。
+
+    app.openList = function(list){
+        $('.list-name').text(list.name);
+        $('ul#tasks').children().each(function(){
+            var li = $(this);
+            var id = li.data('id');
+            var task = app.data.task_map[id];
+            if (app.filterTask(task, { list_id: list.id })) {
+                li.show();
+            } else {
+                li.hide();
+            }
+        });
+    }
+</li>
+<li>
+# 2-2. CustomEvent
+
+## new
+
+要素の種類毎に1メソッド、中に各イベントへの処理が書かれている。
+
+各イベントへの処理は独立したスコープも持っているので見通しが良い。
+
+    app.setup.listname = function(ele){
+        app.addListener('openList', function(list){
+            ele.text(list.name);
+        });
+    }
+    app.setup.tasklist = function(ele){
+        app.addListener('openList', function(list){
+            // ...
+        });
+        app.addListener('registerList', function(list){
+            // ...
+        });
+    }
+</li>
+<li>
+# 2-2. CustomEvent
+
+## メソッド
+
+- app.addEvents(name) ... イベント定義(こういうイベントがあります)
+- app.addListener(name, function) ... イベント処理定義(このイベントが発火したらこのfunctionをcall)
+- app.fireEvent(name, args) ... イベント発火(このイベントを発火)
+</li>
+<li>
+# 2-2. CustomEvent
+
+## イベント定義: app.addEvents(name)
+
+- スコープ: 最外層かつ上部
+
+そのアプリにどんなイベントがあるのか分かりやすくする為、上部に固めて宣言します。
+
+宣言する前のイベントに対して `app.addListener` や `app.fireEvent` は出来ません。
+</li>
+<li>
+# 2-2. CustomEvent
+
+## イベント定義: app.addEvents(name)
+
+### Code
+
+    app.addEvents('setup');        // application setup
+    app.addEvents('clear');        // memory and dom clear
+    app.addEvents('reload');       // clear => setup
+    app.addEvents('resize');       // window resize
+    app.addEvents('alert');        // trouble
+    app.addEvents('selectTab');    // tag component
+    app.addEvents('receiveSign');  // receive sign from api (signin)
+    app.addEvents('receiveToken'); // receive token from api (online)
+</li>
+<li>
+# 2-2. CustomEvent
+
+## イベント処理定義: app.addListener(name, function)
+
+- スコープ: 最外層, app.setup.*
+
+### Code
+
+    // アプリケーションにタスクが登録された場合、メモリに格納
+    app.addListener('registerTask', function(task){
+        app.data.task_map[task.id] = task;
+    });
+
+    // リストが選択された場合、DOM書き換え
+    // `data-setup="listname"`　と初期化処理が指定されているDOM全てのtextが書き換わる
+    app.setup.listname = function(ele){
+        app.addListener('openList', function(list){
+            ele.text(list.name);
+        });
+    }
+</li>
+<li>
+# 2-2. CustomEvent
+
+## イベント発火: app.fireEvent(name, args)
+
+- スコープ: どこでも
+
+「リストを開く」というイベントの場合
+
+1. メニューからクリック
+2. 画面初期化時に前回開いていたリストをlocalStorageから取得
+3. デスクトップ通知をクリック
+4. ショートカットキー操作
+
+という4通りの発火元がありますが、リストを開いた処理については発火元周辺のコードで一切関知しない為、大変書き易いです。
+</li>
+<li>
+# 2-2. CustomEvent
+
+### Code
+
+    // リストのメニューをクリックしたら対応するリストを開くイベントを発火
+    app.setup.listMenu = function(li){
+        var id = li.data('id');
+        var list = app.data.list_map[id];
+        app.fireEvent('openList', list);
+    };
+
+    // リストが開かれたらリスト名を表示する
+    app.setup.listName = function(li){
+        app.addListener('openList', function(list){
+            ele.text(list.name);
+        });
+    };
+
+- *各々の要素はお互いのDOM構造を知らなくて良い。*
+- セレクターで相手を特定して直接書き換える様なコードはよく変更が発生する
+</li>
+<li>
+# 2-3. ElementSetup
+
+## 概要
+
+*data-setup属性*は要素の初期化時に実行されるメソッドを指定する属性です、*data-setup属性*は**最も重要な属性**です。
+
+- HTMLに元々あるDOMに対しては`$(document).ready`のタイミングで初期化処理を実行
+    - `app.dom.setup(document.body)`
+- 生成したDOMに対しては手動で実行 (再帰的に呼ばれます)
+    - `app.dom.setup(element)`
+</li>
+<li>
+# 2-3. ElementSetup
+
+## 実装例
+
+    app.dom.setup = function(){
+        var args = $.makeArray(arguments);
+        var context = args.shift();
+        $('[data-setup]', context).each(function(){
+            var ele = $(this);
+            var methods = ele.data('setup').split(',');
+            for (var i = 0, max_i = methods.length; i < max_i; i++) {
+                app.obj.get(app.setup, methods[i])
+                    .apply(app, [$(this)].concat(args));
+            }
+        });
+    }
+</li>
+<li>
+# 2-3. ElementSetup
+
+## 比較 - too old
+
+なつかしいですね。
+
+    <a href="#" onclick="return show('some-window');">show some window</a>
+
+    function show(id) {
+        var element = document.getElementById(id);
+        if (element) {
+            element.style.display = 'block';
+        }
+        return false;
+    }
+
+</li>
+<li>
+# 2-3. ElementSetup
+
+## 比較 - old
+
+名前自重(笑)
+
+    <a id="button1" href="#">show some window</a>
+
+    $(document).ready(function(){
+        $('#button1').click(function(e){
+            e.preventDefault();
+            $('#some-window').show();
+        });
+    });
+</li>
+<li>
+# 2-3. ElementSetup
+
+## 比較 - new (Web Page)
+
+show-buttonがパーツ化されました。
+
+    <a
+        class="show-button"
+        href="#"
+        data-show-id="some-window">show some window</a>
+
+    $(document).ready(function(){
+        $('.show-button').click(function(e){
+            e.preventDefault();
+            $('#' + $(this).data('show-id')).show();
+        });
+    });
+
+<ins>※ data-show-idに固定ではなく任意文字列(queryString等)がそのまま入る場合、古いjQueryのバージョンではXSSになります。</ins>
+
+</li>
+<li>
+# 2-3. ElementSetup
+
+## 比較 - new (One Page Application)
+
+DOM自身にUIパーツとしての設定が記述されています、例えば*表示時のエフェクト*や*5秒後に自動的に閉じる*といった内容がこれにあたります。
+
+`data-setup="show"` で `app.setup.show(a)` が実行されますが、細かいルールは次節で説明します。
+
+    <a
+        data-setup="show"
+        data-show='{"id":"some-window"}'
+    >show some window</a>
+    <a
+        data-setup="hide"
+        data-hide='{"id":"some-window"}'
+    >close</a>
+    <div
+        data-setup="showable"
+        data-showable='{
+            id:"some-window"
+            default:"hide",
+            show:{effect:{"direction":"down"},timeout:5000},
+            hide:{effect:{"direction":"down"}}
+        }'
+    >some-window</div>
+</li>
+<li>
+# 2-3. ElementSetup
+
+## 比較 - new (One Page Application)
+
+### サンプル2
+
+    <a
+        data-setup="tab.menu"
+        data-tab='{"id":"main","group":"help"}'
+    >main</a>
+    <a
+        data-setup="tab.menu"
+        data-tab='{"id":"sub","group":"help"}'
+    >sub</a>
+
+    <div
+        data-setup="tab.content"
+        data-tab='{"id":"main","group":"help"}'
+    >main</div>
+    <div
+        data-setup="tab.content"
+        data-tab='{"id":"sub","group":"help"}'
+    >sub</div>
+
+</li>
+<li>
+# 2-3. ElementSetup
+
+## data-setupを使うと国際化もこんなに簡単
+
+    <!-- 日本語環境でアクセスすると a要素のtextが置き換わる -->
+    <a
+        data-setup="localize"
+        data-text-ja="新しいリスト"
+    >New List</a>
+
+    app.setup.localize = function(ele){
+        ele.text(ele.data('text-' + app.env.lang));
+    }
+</li>
+<li>
+# 2-4. Flow
+
+1. ドキュメント/Js読み込み
+3. appの定義, アプリケーションレベルのカスタムイベント割り当て処理実行
+4. ドキュメント読み込み完了 => app.run()
+    1. app.fireEvent('ready'); // **app.dom.setupの前の初期化処理**
+        - app.env.langのセット
+    2. app.dom.setup();
+        - 国際化
+        - プルダウンメニュー化
+        - 画面サイズに合わせて伸長
+        - DOM毎のカスタムイベント割り当て(リスト登録, リスト選択, タスク登録, タスク選択, ...)
+    3. app.fireEvent('setup'); // **app.dom.setupの後の初期化処理**
+        - オンライン時: Ajaxで情報を引いて画面構築
+        - オフライン時: localStrorageから情報を引いて画面構築
+</li>
+<li>
+# 2-4. Flow
+
+## Code
+
+    $(document).ready(function(){
+        app.run();
+    });
+
+    app.run = function(){
+        app.fireEvent('ready'); // readyイベントの発火
+        app.dom.setup();        // data-setupの読み込み、実行
+        app.fireEvent('setup'); // setupイベントの発火
+    }
+</li>
+<li>
+# 3-1. Chrome Extensions
+
+詳しくは: [Chrome Extensions API リファレンス](http://dev.screw-axis.com/doc/chrome_extensions/)
+
+ポイントは以下3点
+
+1. カスタムHTMLによるデスクトップ通知
+2. 通知クリックをWebSite側へ伝播し、該当タスクをハイライト
+3. Get the Chrome Extensionsといった案内の削除
+</li>
+<li>
+# 3-1. Chrome Extensions
+
+## カスタムHTMLによるデスクトップ通知
+
+基本的にテキストか、固定HTMLしかデスクトップ通知に指定できない。しかし、固定HTML内にscriptを仕込むことは出来るので、onloadでDOMを変更し、カスタムHTMLによるデスクトップ通知を実現する。
+
+    <script>
+    $(document).ready(function() {
+        var bg = chrome.extension.getBackgroundPage();
+        bg.app.data.notifyWindow = window;
+        bg.app.dom.setup(document.body);
+    });
+    </script>
+
+`chrome.extension.getBackgroundPage()` によってbackground.htmlのappを取り出し、通知HTMLのwindowやdocument.bodyをセットしメソッドを呼び出している。
+</li>
+<li>
+# 3-1. Chrome Extensions
+
+## 通知クリックをWebSite側へ伝播
+
+content_scriptsでカスタムイベントを生成し、イベント内容はJSONでシリアライズして渡す。
+
+    // click時に叩くコード
+    chrome.tabs.sendRequest(tab.id, {
+        event: 'clickNotification',
+        option: {
+            list_id: list_id,
+            task_id: task_id
+        }
+    });
+
+    // content_scripts
+    chrome.extension.onRequest.addListener(
+        function(request, sender, sendResponse) {
+            var customEvent = document.createEvent('Event');
+            customEvent.initEvent('extentionsEvent', true, true);
+            var eventDiv = document.getElementById('receiver');
+            eventDiv.innerText = JSON.stringify(request);
+            eventDiv.dispatchEvent(customEvent);
+        }
+    );
+
+    // site
+    <div id="receiver" data-setup="receiver"></div>
+    app.setup.receiver = function(ele){
+        ele.get(0).addEventListener('extentionsEvent', function() {
+            var data = JSON.parse(ele.text());
+            app.fireEvent(data.event, data.option);
+        }, false);
+    }
+</li>
+<li>
+# 3-1. Chrome Extensions
+
+## Get the Chrome Extensionsといった案内の削除
+
+既に拡張をインストールしている場合、拡張機能インストールの案内は不要ですので、content_scriptsで消します。
+
+    var getTheExtensions = document.getElementById('get-the-extensions');
+    if (getTheExtensions) {
+        getTheExtensions.parentNode.removeChild(getTheExtensions);
+    }
+</li>
+<li>
+# 3-2. Correct
+
+通常のWebページの生存期間はせいぜい数分ですが、One Page Applicationでは数日以上開いたままという事も珍しくありません。
+
+更に、ソーシャル連携等で複数人による操作が可能な場合ガンガン画面とサーバーでデータがずれていきます。
+
+そんな過酷な環境でも安心して使用できる様にするには、細やかな同期処理が必要です。
+
+1. 定期的に同期する
+2. 操作対象が既に存在しない、権限がない等不整合が検出された場合に同期する
+</li>
+<li>
+# 3-2. Correct
+
+## 定期的に同期する
+
+最も原始的な方法は `location.reload()` ですが、操作途中の内容が消えてしまう**最悪な手段**です。
+
+エレガントに同期を回復するにはboot用APIから情報を再取得し変更がある場合、メモリ上のデータとDOMを一致させます。
+
+画面上の状態、つまり選択しているリストやタスクは極力元に戻す等のケアが使用感を向上させます。
+
+この時利用するのが clear, setup の2つのカスタムイベントです、
+setupは素のHTMLにWebAPIから取得したデータをはめる処理を行うイベント、
+clearは素のHTMLに戻すイベントです、同期状態を回復したい場合 `app.util.reload()` でclearとsetupイベントを発火します。
+</li>
+<li>
+# 3-2. Correct
+
+## 操作対象が既に存在しない、権限がない等不整合が検出された場合に同期する
+
+Ajaxでステータスコード403又は404が帰ってきた場合に、画面上とサーバー間でデータの不整合が発生しています、エラーメッセージを表示している隙に素早く前項のreloadを行いましょう。
+
+この時、削除された、又は権限を外されたリストが画面から消えたりします。
+
+    app.ajax = function(option){
+        if ("data" in option && "type" in option && option.type.toLowerCase() === 'post') {
+            if (typeof option.data === 'object') {
+                option.data[app.CSRF_TOKEN_NAME] = app.env.token;
+            } else {
+                option.data = option.data + '&' + app.CSRF_TOKEN_NAME + '=' + app.env.token;
+            }
+        }
+        return $.ajax(option)
+        .fail(function(jqXHR, textStatus, errorThrown){
+            
+            // Offline
+            if (!jqXHR.status) {
+                app.fireEvent('alert', 'offline');
+                app.state.offline = true;
+            }
+
+            // Unauthorized
+            else if (jqXHR.status === 401) {
+                if (option.setup) {
+                    app.dom.show($('#signin'));
+                } else {
+                    app.fireEvent('alert', jqXHR.status);
+                    setTimeout(function(){
+                        location.href = '/';
+                    }, 3000);
+                }
+            }
+
+            // Collision
+            else if (jqXHR.status === 403 || jqXHR.status === 404) {
+                app.fireEvent('alert', jqXHR.status);
+                setTimeout(function(){
+                    app.fireEvent('reload');
+                }, 3000);
+            }
+
+            // Internal Server Error
+            else if (jqXHR.status >= 500) {
+                app.fireEvent('alert', jqXHR.status);
+            }
+        });
+    }
+</li>
+<li>
+# 3-3. Offline
+
+One Page Applicationはもちろんスマホでも動きます、しかし地下鉄を始め電波がつながらないこともしばしば...
+
+1. オフライン時に登録処理をキューイング
+2. オフライン時に開けるようにする
+</li>
+<li>
+# 3-3. Offline
+
+## キューイング
+
+不通になってしまった場合も登録処理が出来る仕組み
+
+1. Ajaxで更新失敗、ステータスコード0ならキューイング
+2. Ajax通信成功、キューがあったらサルベージ
+</li>
+<li>
+# 3-3. Offline
+
+    app.ajax({
+        // ...
+    })
+    .done(function(data){
+        // ...
+    })
+    .fail(function(jqXHR, textStatus, errorThrown){
+        if (!jqXHR.status) {
+            app.queue.push({
+                api: api,
+                req: form.serializeArray()
+            });
+            // ...
+        }
+    });
+</li>
+<li>
+# 3-3. Offline
+
+## サルベージ
+
+複数のキューをまとめて投げます、サーバーサイドでキューの内容によるエラーがあっても無視します。
+
+- キューに問題がある場合何度実行しても無駄なのでスルー
+- 貧弱な回線だとリクエストだけ送信してレスポンスを受け取れずに失敗し、サーバー上には反映されている等のケースがよく発生するので、**重複無視**
+- 401等salvage失敗時はキューを消さない
+</li>
+<li>
+# 3-3. Offline
+
+## オフライン起動
+
+オフライン状態からでもWebアプリケーションを起動させる仕組み
+
+1. manifestを用意し、applicationCacheに対応
+2. boot用apiの結果はlocalStorageに保存しておく
+3. 起動時オフラインの場合localStorageから画面構築
+
+※Google ChromeでのapplicationCacheの挙動に不具合があるので、スマホ限定でもいいかも。
+</li>
+<li>
+# 3-3. Offline
+
+### HTML
+
+    <html manifest="app-mobile.manifest">
+
+### Manifest(app-mobile.manifest)
+
+マニフェストにはCSS/画像/Jsといった依存するリソースすべてを列挙します。
+
+列挙されていないリソースがHTMLから参照されているとうまく動作しません。
+
+完成したアプリでうまくapplicationCacheが効かない場合、最小のサンプルコードから原因を探っていきましょう。
+
+    CACHE MANIFEST
+    # version 1.52
+    CACHE:
+    /static/css/bootstrap-1.3.0.min.css
+    /static/css/app-base.css
+    /static/css/app-mobile.css
+    /static/js/jquery-1.6.4.min.js
+    /static/js/jquery-ui-1.8.13.js
+    /static/js/iscroll.js
+    /static/js/spin.min.js
+    /static/js/app-core.js
+    /static/js/app-base.js
+    /static/js/app-base-signin.js
+    /static/js/app-base-viewer.js
+    /static/js/app-mobile-viewer.js
+    /static/img/address.png
+    /static/img/create-task.png
+    /static/img/cross24.png
+    /static/img/down.png
+    /static/img/email24.png
+    /static/img/email_off24.png
+    /static/img/left24.png
+    /static/img/minus24.png
+    /static/img/plus24.png
+    /static/img/right24.png
+    /static/img/star24.png
+    /static/img/star_off24.png
+    /static/img/tasks24.png
+    /static/img/tasks_half24.png
+    /static/img/tasks_off24.png
+    /static/img/up.png
+    NETWORK:
+    /token
+    /api/1/account/me
+    /api/1/account/update
+    /api/1/account/delete
+    /api/1/account/salvage
+    /api/1/list/create
+    /api/1/list/update
+    /api/1/list/delete
+    /api/1/list/clear
+    /api/1/task/create
+    /api/1/task/update
+    /api/1/task/move
+    /api/1/comment/create
+    /api/1/comment/delete
+    /api/1/twitter/update_friends
+    /api/1/profile_image/
+    https://tasks.7kai.org/api/1/profile_image/
+    https://graph.facebook.com/
+    https://si0.twimg.com/
+    https://si1.twimg.com/
+    https://si2.twimg.com/
+    https://si3.twimg.com/
+    FALLBACK:
+    https://tasks.7kai.org/api/1/profile_image/ /static/img/address.png
+    https://graph.facebook.com/ /static/img/address.png
+    https://si0.twimg.com/ /static/img/address.png
+    https://si1.twimg.com/ /static/img/address.png
+    https://si2.twimg.com/ /static/img/address.png
+    https://si3.twimg.com/ /static/img/address.png
+</li>
+<li>
+# 3-3. Offline
+
+## Nginx
+
+    location ~ .*.manifest {
+        add_header　Content-Type text/cache-manifest;
+        root /home/aska/Dropbox/product/7kai-Tasks/htdocs/static;
+    }
+</li>
+<li>
+# 3-4. Debounce
+
+## 基礎編: 連続実行を抑止
+
+    app.func.debounce = function(f, threshold){
+        var timeout;
+
+        return function(){
+        	var self = this;
+        	var args = arguments;
+
+        	if (timeout)
+        		clearTimeout(timeout);
+
+        	timeout = setTimeout(function(){
+        		f.apply(self, args);
+        		timeout = null; 
+        	}, threshold || 100); 
+        };
+    }
+
+    var functon1_debounce = app.func.debounce(functon1);
+    functon1_debounce();
+    functon1_debounce(); // 1回しか実行されない
+</li>
+<li>
+# 3-4. Debounce
+
+## 応用編: マウスがエリアを離れて500ms後に閉じる実装。
+
+    app.dom.hover = function(ele, over, out, delay){
+        var timer;
+        ele.hover(function(){
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            } else {
+                over.apply(this, arguments);
+            }
+        }, function(){
+            var that = this,
+                args = $.makeArray(arguments);
+            timer = setTimeout(function(){
+                out.apply(that, args);
+                timer = null;
+            }, delay);
+        });
+    }
+</li>
+<li>
+# 3-5. SmartPhone
+## ポイント
+
+- metaタグでアプリっぽく
+- **PCと同等の状態からDOMを調整し画面を小さくするだけで十分**
+- jQuery Mobileなど変なライブラリを使わない
+  - PC側とどんどんJs/CSSの実装が乖離していく
+  - 特に嬉しいことは起きない
+- **画面下にメニューを固定するにはiscroll.js等が必要(iOS5未確認)**、割りきって上で妥協した方が楽だが片手で操作し辛い
+- applicationCacheはギリギリ..アウト感があるが割りきって使うのもあり
+</li>
+<li>
+# 3-5. SmartPhone
+
+    <!DOCTYPE html>
+    <html manifest="app-mobile.manifest">
+    <head>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>7kai Tasks</title>
+    <meta name="viewport" content="width=device-width,
+      user-scalable=no, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="stylesheet" href="/static/css/bootstrap-1.3.0.min.css">
+    <link rel="stylesheet" href="/static/css/app-base.css">
+    <link rel="stylesheet" href="/static/css/app-mobile.css">
+    <script src="/static/js/jquery-1.6.4.min.js"></script>
+    <script src="/static/js/iscroll.js"></script>
+    <script src="/static/js/app-core.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/app-mobile.js"></script>
+</li>
+<li>
+# ご清聴ありがとうございました。
+
+ライブドアでは優秀な人材を募集しております。
+</li>
+</ul>
+</body>
+</html>
